@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "agent:init": "cd agent && node --env-file=../.env --import tsx/esm src/init.ts",
+    "agent": "cd agent && node --env-file=../.env --import tsx/esm src/index.ts",
+    "agent:tui": "pi --cwd agent/workspace --extension agent/extensions/memory/index.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
