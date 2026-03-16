@@ -1,0 +1,13 @@
+services:
+  agent:
+    build: .
+    stdin_open: true
+    tty: true
+    env_file: ../.env
+    environment:
+      - EVO_WORKSPACE=/workspace
+    volumes:
+      - workspace:/workspace
+
+volumes:
+  workspace:
