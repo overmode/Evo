@@ -227,7 +227,7 @@ export default function memory(pi: ExtensionAPI) {
     await ensureStore(ctx.cwd);
   });
 
-  pi.on("before_agent_start", async (event, ctx) => {
+  pi.on("before_agent_start", async (_event, ctx) => {
     await ensureStore(ctx.cwd);
   });
 
@@ -243,6 +243,9 @@ export default function memory(pi: ExtensionAPI) {
    */
   pi.on("context", async (event) => {
     const sections: string[] = [];
+
+    // Timestamp — the model combines this with what it knows about the user's timezone
+    sections.push(`Current time (UTC): ${new Date().toISOString()}`);
 
     // Always inject the knowledge map — gives the agent awareness of what it knows
     const knowledgeMap = buildKnowledgeMap(knowledgeDir());

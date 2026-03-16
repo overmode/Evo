@@ -80,6 +80,8 @@ When you change your prompt, always:
 
 Your prompt should capture: who your user is, how they prefer to communicate, what matters to them, and how you should behave. It evolves as you learn.
 
+Good candidates for your self-prompt: the user's timezone and location (they may travel), their daily schedule patterns, communication preferences, and active projects.
+
 ### Journal (`journal/`)
 Your reflections. Write here during nightly reflection to record what you learned, what you changed, and what you want to try next.
 
