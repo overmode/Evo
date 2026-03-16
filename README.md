@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Evo
 
-## Getting Started
+A self-improving personal agent built on [Pi Mono](https://pi.dev/).
 
-First, run the development server:
+Evo is a research project exploring whether an LLM agent can genuinely self-improve when given the right feedback loops and constraints — not by retraining weights, but by engineering its own environment: what it knows, what it can do, how it thinks, and how it evaluates whether it's getting better.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## How it works
+
+Evo runs as a Pi coding agent with access to a workspace filesystem. Everything the agent knows lives as markdown files it can read and write.
+
+**Observational memory** — When conversations get long, an observer (cheap LLM call) compresses them into dated observation notes. These are indexed by [QMD](https://github.com/tobi/qmd) for hybrid search (BM25 + vector + reranking), so the agent can recall relevant context from any point in its history.
+
+**Knowledge with structure** — Knowledge files use YAML frontmatter with descriptions. The full knowledge tree (with descriptions) is injected into every LLM call, giving the agent a map of what it knows. A `recall` tool lets it search deeper. Writes to knowledge are validated — no file without a description reaches disk.
+
+**Guard rails** — Sessions and the constitution are readonly (enforced at the tool call level). The agent can read everything but can only write to knowledge, skills, prompts, and triggers.
+
+**Daily sessions** — A new session starts at 4am (configurable). Context carries forward through observations and the knowledge folder.
+
+## Architecture
+
+```
+agent/
+  src/
+    index.ts              — Entry point: bootstraps workspace, creates Pi session
+    session.ts            — Session date calculation with daily reset
+
+  extensions/
+    memory/
+      index.ts            — Pi extension: guard + observer + context injection + recall tool
+      utils.ts            — Pure logic: path guards, text extraction, knowledge validation, storage
+      tests/              — Collocated tests (48 tests)
+
+  templates/
+    AGENTS.md             — Constitution template (immutable rules)
+    SYSTEM.md             — Initial self-prompt (agent evolves this)
+
+  compose.yaml            — Docker Compose config
+  Dockerfile              — Container image with non-root user
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+At runtime, the workspace looks like:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+workspace/
+  .pi/
+    AGENTS.md             — Constitution (readonly)
+    SYSTEM.md             — Agent's evolving self-prompt
+    extensions/memory/    — Synced from source on every start
+  sessions/
+    2026-03-16.jsonl      — Today's conversation
+  knowledge/
+    recipes/risotto.md    — Agent-organized, frontmatter required
+  memory/
+    observations/         — Compressed conversation notes
+    index.sqlite          — QMD search index
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Setup
 
-## Learn More
+```bash
+cd agent
+npm install
+```
 
-To learn more about Next.js, take a look at the following resources:
+Create a `.env` file at the project root:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Running
 
-## Deploy on Vercel
+**With Docker (recommended):**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+cd agent
+npm start          # docker compose up --build
+npm run stop       # docker compose down
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Locally (for development):**
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+cd agent
+npx tsx src/index.ts
+```
+
+**With Pi's TUI (for a nicer terminal experience):**
+
+```bash
+pi --cwd /path/to/workspace
+```
+
+## Testing
+
+```bash
+cd agent
+npm test           # vitest run
+npm run test:watch # vitest (watch mode)
+```
+
+## What's next
+
+- Nightly reflection process (knowledge reorganization, skill/prompt engineering)
+- Self-triggering (agent schedules its own future actions)
+- Backtesting (replay past conversations against proposed changes)
+- Telegram integration
+- Prompt versioning and A/B testing
+
+## License
+
+MIT
