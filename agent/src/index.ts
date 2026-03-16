@@ -42,6 +42,13 @@ async function bootstrap() {
     }
   }
 
+  // Copy base skills (only on first run — agent creates its own over time)
+  const skillsSrc = path.join(TEMPLATES, "skills");
+  const skillsDest = path.join(piDir, "skills");
+  if (fs.existsSync(skillsSrc) && !fs.existsSync(skillsDest)) {
+    await copyDirRecursive(skillsSrc, skillsDest);
+  }
+
   // Always sync extensions from source (they're code, not user data)
   await copyDirRecursive(EXTENSIONS_SRC, path.join(piDir, "extensions"));
 }
