@@ -8,9 +8,8 @@ services:
       - EVO_WORKSPACE=/workspace
     volumes:
       - workspace:/workspace
-      # QMD GGUF models (~2GB total, downloaded on first run)
-      - models:/home/evo/.cache/qmd/models
+      # QMD GGUF models — bind-mount host cache so models are shared
+      - ${HOME}/.cache/qmd/models:/home/evo/.cache/qmd/models
 
 volumes:
   workspace:
-  models:

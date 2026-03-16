@@ -13,6 +13,8 @@ RUN npm ci
 COPY tsconfig.json ./
 COPY src ./src
 COPY templates ./templates
+COPY extensions ./extensions
+COPY entrypoint.sh ./
 
 # Non-root user for the agent
 RUN groupadd -r evo && useradd -r -g evo -m evo
@@ -25,4 +27,4 @@ ENV NODE_ENV=production
 
 USER evo
 
-ENTRYPOINT ["npx", "tsx", "src/index.ts"]
+ENTRYPOINT ["./entrypoint.sh"]

@@ -191,34 +191,44 @@ export default function memory(pi: ExtensionAPI) {
 
   // --- Memory: QMD store lifecycle ---
 
-  pi.on("session_start", async (_event, ctx) => {
-    cwd = ctx.cwd;
+  /** Initialize the QMD store. Called once, on the first hook that fires. */
+  async function ensureStore(workspace: string) {
+    if (store) return;
+    cwd = workspace;
     fs.mkdirSync(obsDir(), { recursive: true });
     fs.mkdirSync(knowledgeDir(), { recursive: true });
-    observedUpToIndex = 0;
 
-    // Validate knowledge files — warn about missing descriptions
     const validations = validateKnowledgeDir(knowledgeDir());
-    const invalid = validations.filter((v) => !v.valid);
-    if (invalid.length > 0) {
-      for (const v of invalid) {
-        console.warn(`[memory] ${path.relative(cwd, v.filePath)}: ${v.error}`);
-      }
+    for (const v of validations.filter((v) => !v.valid)) {
+      console.warn(`[memory] ${path.relative(cwd, v.filePath)}: ${v.error}`);
     }
 
-    // Initialize QMD store
     const dbPath = path.join(cwd, "memory", "index.sqlite");
-    store = await createStore({
-      dbPath,
-      config: {
-        collections: {
-          observations: { path: obsDir(), pattern: "**/*.md" },
-          knowledge: { path: knowledgeDir(), pattern: "**/*.md" },
+    try {
+      store = await createStore({
+        dbPath,
+        config: {
+          collections: {
+            observations: { path: obsDir(), pattern: "**/*.md" },
+            knowledge: { path: knowledgeDir(), pattern: "**/*.md" },
+          },
         },
-      },
-    });
+      });
+      await reindex();
+      console.log("[memory] Store ready.");
+    } catch (err) {
+      console.error("[memory] Failed to initialize QMD store:", err);
+      store = null;
+    }
+  }
 
-    await reindex();
+  // Initialize on whichever fires first — session_start (interactive) or before_agent_start (SDK)
+  pi.on("session_start", async (_event, ctx) => {
+    await ensureStore(ctx.cwd);
+  });
+
+  pi.on("before_agent_start", async (event, ctx) => {
+    await ensureStore(ctx.cwd);
   });
 
   pi.on("session_shutdown", async () => {

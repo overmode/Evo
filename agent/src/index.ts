@@ -1,12 +1,12 @@
-import { createAgentSession, SessionManager } from "@mariozechner/pi-coding-agent";
+import { createAgentSession, SessionManager, DefaultResourceLoader } from "@mariozechner/pi-coding-agent";
 import { getModel } from "@mariozechner/pi-ai";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as readline from "node:readline";
 import { sessionDate } from "./session.js";
+import memoryExtension from "../extensions/memory/index.js";
 
 const WORKSPACE = process.env.EVO_WORKSPACE ?? path.join(process.cwd(), "workspace");
-const EXTENSIONS_SRC = path.join(new URL(".", import.meta.url).pathname, "..", "extensions");
 const TEMPLATES = path.join(new URL(".", import.meta.url).pathname, "..", "templates");
 
 function sessionFile(): string {
@@ -27,14 +27,13 @@ async function copyDirRecursive(src: string, dest: string) {
   }
 }
 
-/** Sets up the workspace on first run: copies templates and syncs extensions. */
+/** Sets up the workspace on first run: copies templates and base skills. */
 async function bootstrap() {
   const piDir = path.join(WORKSPACE, ".pi");
 
   await fs.promises.mkdir(path.join(WORKSPACE, "sessions"), { recursive: true });
   await fs.promises.mkdir(piDir, { recursive: true });
 
-  // Copy prompt templates (only on first run — agent evolves these over time)
   for (const file of ["AGENTS.md", "SYSTEM.md"]) {
     const target = path.join(piDir, file);
     if (!fs.existsSync(target)) {
@@ -42,15 +41,11 @@ async function bootstrap() {
     }
   }
 
-  // Copy base skills (only on first run — agent creates its own over time)
   const skillsSrc = path.join(TEMPLATES, "skills");
   const skillsDest = path.join(piDir, "skills");
   if (fs.existsSync(skillsSrc) && !fs.existsSync(skillsDest)) {
     await copyDirRecursive(skillsSrc, skillsDest);
   }
-
-  // Always sync extensions from source (they're code, not user data)
-  await copyDirRecursive(EXTENSIONS_SRC, path.join(piDir, "extensions"));
 }
 
 async function main() {
@@ -60,9 +55,17 @@ async function main() {
   const sf = sessionFile();
   const sessionManager = SessionManager.open(sf);
 
+  // Register the memory extension as a factory so Pi wires up all hooks
+  const resourceLoader = new DefaultResourceLoader({
+    cwd: WORKSPACE,
+    extensionFactories: [memoryExtension],
+  });
+  await resourceLoader.reload();
+
   const { session } = await createAgentSession({
     model,
     sessionManager,
+    resourceLoader,
     cwd: WORKSPACE,
   });
 
